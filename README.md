@@ -8,15 +8,18 @@
 
 ## Miksi tämä projekti?
 
-Olemassa olevat sovellukset (mm. Firefly III) ovat hyviä kirjanpitotyökaluja, mutta niissä on puutteita:
+Olemassa olevat sovellukset kuten Firefly III ovat erinomaisia omiin tarkoituksiinsa rakennettuja kirjanpitotyökaluja — tämä projekti ei pyri kilpailemaan niiden kanssa. Lähtökohta on puhtaasti henkilökohtainen: mikä työkalu sopii juuri minulle ja kotitalouteeni.
 
-- Ylätason tilannekuva puuttuu tai on kömpelö
-- Maksuaikakortin laskutusjakson seuranta ei onnistu
-- Ylläpito rasittaa (Docker, päivitykset, monimutkaisuus)
-- Suomenkielinen käyttöliittymä puuttuu
-- Automaattinen pankki-integraatio suomalaisille pankeille on vaikea toteuttaa kolmannen osapuolen sovelluksissa
+Projektin prioriteetit ovat:
 
-Tämä projekti rakentaa kevyen, itse hostattavan dashboardin joka yrittää ratkaista näitä ongelmia.
+- **Ylätason tilannekuva ensin** — missä mennään, ei kirjanpitolomakkeita
+- **Suomalaiset pankit** — GoCardless PSD2-integraation kautta, automaattisesti
+- **Maksuaikakortin laskutusjaksoseuranta** — ominaisuus jota en ole muualta löytänyt
+- **Perhenäkymä** — kotitalouden yhteinen tilannekuva yhden asennuksen sisällä
+- **Täysin itse hostattava** — data pysyy omassa hallinnassa, ei pilviriippuvuuksia
+- **Suomenkielinen käyttöliittymä** — koska se on luontevinta
+
+Tämä on henkilökohtainen projekti. Se ei pyri olemaan yleiskäyttöinen — se pyrkii olemaan oikea työkalu omaan käyttöön.
 
 ---
 
@@ -28,9 +31,9 @@ Tämä projekti rakentaa kevyen, itse hostattavan dashboardin joka yrittää rat
 | --- | --- |--- |
 | Frontend | HTML + CSS + JS (vanilla) | Ei build-tooleja, suoraan selaimessa, helppo ylläpitää |
 | Kuvaajat | Chart.js | Kevyt, selainpohjainen, ei riippuvuuksia |
-| Backend | Python (Flask tai FastAPI) | Kevyt, tuttu, hyvät kirjastot |
+| Backend | Python (Flask tai FastAPI) ¹ | Kevyt, tuttu, hyvät kirjastot — valinta auki, katso Avoimet kysymykset |
 | Tietokanta | SQLite | Ei erillistä palvelinta, riittää kotikäyttöön |
-| Pankkiintegraatio | GoCardless Bank Account Data API | Ainoa realistinen vaihtoehto yksityishenkilölle PSD2-ympäristössä; tukee OP:ta, S-Pankkia, Nordeaa ym. |
+| Pankki-integraatio | GoCardless Bank Account Data API | Ainoa realistinen vaihtoehto yksityishenkilölle PSD2-ympäristössä; tukee OP:ta, S-Pankkia, Nordeaa ym. |
 | Hosting | Paikallinen (localhost tai kotiverkko) | Ei pilvipalvelua, data pysyy omassa hallinnassa |
 
 ### UI-arkkitehtuuri
@@ -46,9 +49,57 @@ Tämä projekti rakentaa kevyen, itse hostattavan dashboardin joka yrittää rat
 | S-Pankki, OP, Nordea | GoCardless API | Automaattinen, OAuth uusittava 90 pv välein |
 | BASE | GoCardless API | Automaattinen |
 | Nordnet | CSV-export | Manuaalinen tai puoliautomaattinen |
-| PayPal | PayPal REST API tai CSV | TBD |
+| PayPal | PayPal REST API tai CSV ² | TBD — katso Avoimet kysymykset |
 | Mastercard (maksuaikakortti) | GoCardless API | Automaattinen |
 | Lainat | Manuaalinen syöttö | Manuaalinen (saldo + korko + lyhennys) |
+
+---
+
+## Avoimet kysymykset ja alustavat päätökset
+
+Seuraavat asiat on tunnistettu mutta ei vielä päätetty — tai niihin on tehty alustava päätös, joka saattaa muuttua arkkitehtuurin tarkentuessa. Nämä kannattaa ratkaista ennen kyseistä vaihetta.
+
+### ¹ Flask vai FastAPI
+
+**Tila:** Avoin — päätös ennen Vaiheen 2 aloitusta.
+
+Flask on yksinkertaisempi ja riittää synkroniseen käyttöön. FastAPI sopii paremmin asynkronisiin operaatioihin, joita GoCardless-haut voivat vaatia. Valinta vaikuttaa middleware-rakenteeseen, autentikointiin ja schedulerin toteutukseen.
+
+### ² PayPal-integraatio
+
+**Tila:** Avoin — REST API vai CSV-tuonti.
+
+REST API on automaattisempi mutta vaatii PayPal-sovelluksen rekisteröinnin. CSV on yksinkertaisempi mutta manuaalinen. Integraation prioriteetti muihin lähteisiin nähden on myös auki.
+
+### GoCardless OAuth:n uusiminen käytännössä
+
+**Tila:** Avoin — rakenne päätettävä Vaiheen 3 yhteydessä.
+
+GoCardless-yhteys vanhenee 90 päivän välein. Kotihostin ei välttämättä ole aktiivinen juuri oikeaan aikaan. Vaihtoehtoja:
+- Dashboard-banneri tai muu ilmoitus, kun vanheneminen lähestyy
+- Käyttäjä uusii yhteyden selainpohjaisesti kirjautuessaan sisään
+- Scheduler tarkistaa voimassaolon ja varoittaa ajoissa
+
+### Maksuaikakortin budjetti-granulaarisuus
+
+**Tila:** Alustava — `budjetti_pv` on tällä hetkellä yksittäinen arvo per laskutusjakso.
+
+Avoimia alakysymyksiä ennen tietokannan lukitsemista:
+- Onko budjetti korttikohtainen vai käyttäjäkohtainen?
+- Säilytetäänkö historiallinen budjetti eri jaksoille erikseen?
+- Voidaanko jaksokohtaista budjettia muuttaa jälkikäteen?
+
+### Projektin nimi ja kansiorakenne
+
+**Tila:** Epäjohdonmukaisuus — hakemistorakenne käyttää nimeä `rahatilanne/`, repositorio on `Saldo`.
+
+Ennen koodipohjan skaffoldausta kannattaa päättää lopullinen nimi ja kansiorakenne.
+
+### Versiokartan aukot
+
+**Tila:** Alustava — versiokartta hyppää `0.6.0`→`0.9.0` ilman väliversioita.
+
+Vaiheet 7+ (lokalisaatio, mobiili, dokumentaatio) ovat vielä nimeämättä. Kannattaa joko nimetä väliversiot tai hyväksyä, että ne täsmentyvät myöhemmin.
 
 ---
 
@@ -85,8 +136,6 @@ card_cycles     — maksuaikakorttijaksot (id, account_id, alku, loppu, maksupä
 ---
 
 ## Maksuaikakortti-ominaisuus
-
-Tämä on ominaisuus jota muut sovellukset eivät tue:
 
 - Korttijaksolla on **alkupäivä, loppupäivä ja maksupäivä** (esim. 1.–31.3., maksu 1.4.)
 - Dashboard näyttää **kertymän** ja **edistymispalkin** jakson sisällä
@@ -186,7 +235,7 @@ Patch-versiot (`0.1.1` jne.) bugifixeille ja pienille korjauksille. Muutokset ki
 ## Tiedostorakenne (tavoite)
 
 ```
-rahatilanne/
+saldo/
 ├── frontend/
 │   ├── index.html          ← dashboard (tästä aloitettu)
 │   ├── static/
@@ -195,7 +244,7 @@ rahatilanne/
 │   └── components/
 │       └── panel.js
 ├── backend/
-│   ├── app.py              ← Flask/FastAPI entry point
+│   ├── app.py              ← Flask/FastAPI entry point ¹
 │   ├── models.py           ← tietokantamallit
 │   ├── routes/
 │   │   ├── accounts.py
