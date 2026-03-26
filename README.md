@@ -14,9 +14,9 @@ Olemassa olevat sovellukset (mm. Firefly III) ovat hyviä kirjanpitotyökaluja, 
 - Maksuaikakortin laskutusjakson seuranta ei onnistu
 - Ylläpito rasittaa (Docker, päivitykset, monimutkaisuus)
 - Suomenkielinen käyttöliittymä puuttuu
-- Automaattinen pankkiintegraatio suomalaisille pankeille on vaikea toteuttaa kolmannen osapuolen sovelluksissa
+- Automaattinen pankki-integraatio suomalaisille pankeille on vaikea toteuttaa kolmannen osapuolen sovelluksissa
 
-Tämä projekti rakentaa kevyen, itse hostattavan dashboardin joka ratkaisee juuri nämä ongelmat.
+Tämä projekti rakentaa kevyen, itse hostattavan dashboardin joka yrittää ratkaista näitä ongelmia.
 
 ---
 
@@ -25,7 +25,7 @@ Tämä projekti rakentaa kevyen, itse hostattavan dashboardin joka ratkaisee juu
 ### Teknologia
 
 | Komponentti | Valinta | Perustelu |
-|---|---|---|
+| --- | --- |--- |
 | Frontend | HTML + CSS + JS (vanilla) | Ei build-tooleja, suoraan selaimessa, helppo ylläpitää |
 | Kuvaajat | Chart.js | Kevyt, selainpohjainen, ei riippuvuuksia |
 | Backend | Python (Flask tai FastAPI) | Kevyt, tuttu, hyvät kirjastot |
@@ -42,7 +42,7 @@ Tämä projekti rakentaa kevyen, itse hostattavan dashboardin joka ratkaisee juu
 ### Integraatiot ja tietolähteet
 
 | Lähde | Metodi | Automaatio |
-|---|---|---|
+| --- | --- | --- |
 | S-Pankki, OP, Nordea | GoCardless API | Automaattinen, OAuth uusittava 90 pv välein |
 | BASE | GoCardless API | Automaattinen |
 | Nordnet | CSV-export | Manuaalinen tai puoliautomaattinen |
@@ -104,7 +104,7 @@ Sovellus tukee useampaa käyttäjää yhden asennuksen sisällä:
 - Tilit ja tapahtumat liitetty käyttäjäkohtaisesti
 - **Perhenäkymä** (valinnainen): aggregoitu dashboard joka yhdistää kaikkien tilit
   - Voidaan rajoittaa tietyille käyttäjille (esim. vain admin näkee kaikkien tiedot)
-- Teknisesti yksinkertainen: yksi SQLite + käyttäjätaulu + user_id viiteavaimen kaikkialla
+- Teknisesti yksinkertainen: yksi SQLite + käyttäjätaulu + user_id viiteavain kaikkialla
 
 > Esimerkki: palkansaajat näkevät omat tilinsä, perhenäkymä näyttää yhteisen tilanteen.
 
