@@ -1,0 +1,221 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.wrap{display:flex;gap:0;position:relative;overflow:hidden;min-height:700px}
+.main{flex:1 1 auto;min-width:0;padding:1rem;transition:all .3s ease}
+.main.shifted{margin-right:320px}
+.panel{position:absolute;right:-320px;top:0;width:320px;height:100%;background:var(--color-background-primary);border-left:0.5px solid var(--color-border-secondary);transition:right .3s ease;padding:16px;overflow-y:auto}
+.panel.open{right:0}
+.panel-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.close-btn{cursor:pointer;font-size:16px;color:var(--color-text-secondary);line-height:1;background:none;border:none;padding:2px 6px}
+.fin-top{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.fin-metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px;cursor:pointer;border:0.5px solid transparent;transition:border-color .15s}
+.fin-metric:hover{border-color:var(--color-border-secondary)}
+.fin-metric.active{border-color:#1D9E75}
+.fin-metric-label{font-size:10px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.fin-metric-value{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+.fin-metric-sub{font-size:10px;color:var(--color-text-secondary);margin-top:2px}
+.fin-mid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:10px;margin-bottom:10px}
+.fin-bot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.fin-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px;cursor:pointer;transition:border-color .15s}
+.fin-card:hover{border-color:var(--color-border-secondary)}
+.fin-card.active{border-color:#1D9E75}
+.fin-sec{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-secondary);margin-bottom:10px}
+.fin-acc{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.fin-acc:last-child{border-bottom:none}
+.fin-acc-name{font-size:12px;color:var(--color-text-primary)}
+.fin-acc-bank{font-size:10px;color:var(--color-text-secondary)}
+.fin-acc-amt{font-size:12px;font-weight:500;color:var(--color-text-primary)}
+.fin-cat-row{padding:4px 0}
+.fin-cat-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+.fin-bar-wrap{height:3px;background:var(--color-border-tertiary);border-radius:2px;margin-bottom:5px}
+.fin-bar{height:3px;border-radius:2px}
+.fin-loan{padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.fin-loan:last-of-type{border-bottom:none}
+.fin-loan-title{font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px}
+.fin-loan-detail{display:flex;justify-content:space-between;font-size:10px;color:var(--color-text-secondary);margin-bottom:4px}
+.fin-prog-wrap{height:3px;background:var(--color-border-tertiary);border-radius:2px}
+.fin-prog{height:3px;border-radius:2px;background:#1D9E75}
+.pos{color:#1D9E75}
+.neg{color:#D85A30}
+.cycle-wrap{margin-top:6px}
+.cycle-bar-outer{height:8px;background:var(--color-border-tertiary);border-radius:4px;overflow:hidden;margin:8px 0 4px}
+.cycle-bar-inner{height:8px;border-radius:4px;background:#378ADD;transition:width 1s}
+.detail-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px}
+.detail-row:last-child{border-bottom:none}
+.detail-row span:first-child{color:var(--color-text-secondary)}
+.detail-row span:last-child{font-weight:500;color:var(--color-text-primary)}
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;background:var(--color-background-info);color:var(--color-text-info);margin-left:6px}
+</style>
+
+<div class="wrap" id="wrap">
+  <div class="main" id="main">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div>
+        <div style="font-size:15px;font-weight:500;color:var(--color-text-primary)">Rahatilanne</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">Päivitetty tänään klo 08:15</div>
+      </div>
+      <div style="font-size:11px;color:var(--color-text-secondary);background:var(--color-background-secondary);padding:4px 10px;border-radius:var(--border-radius-md)">Maaliskuu 2026</div>
+    </div>
+
+    <div class="fin-top">
+      <div class="fin-metric" onclick="openPanel('pankkitilit')">
+        <div class="fin-metric-label">Pankkitilit</div>
+        <div class="fin-metric-value">13 065 €</div>
+        <div class="fin-metric-sub">5 tiliä ↗</div>
+      </div>
+      <div class="fin-metric" onclick="openPanel('sijoitukset')">
+        <div class="fin-metric-label">Sijoitukset</div>
+        <div class="fin-metric-value">24 800 €</div>
+        <div class="fin-metric-sub pos">+2,3% tänään ↗</div>
+      </div>
+      <div class="fin-metric" onclick="openPanel('menot')">
+        <div class="fin-metric-label">Menot maaliskuussa</div>
+        <div class="fin-metric-value neg">−1 842 €</div>
+        <div class="fin-metric-sub neg">−358 € yli tulojen ↗</div>
+      </div>
+      <div class="fin-metric" onclick="openPanel('tulot')">
+        <div class="fin-metric-label">Tulot maaliskuussa</div>
+        <div class="fin-metric-value pos">+3 200 €</div>
+        <div class="fin-metric-sub">Palkka ↗</div>
+      </div>
+    </div>
+
+    <div class="fin-mid">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="fin-card" onclick="openPanel('tilit')">
+          <div class="fin-sec">Tilit</div>
+          <div class="fin-acc"><div><div class="fin-acc-name">Käyttötili</div><div class="fin-acc-bank">S-Pankki</div></div><div class="fin-acc-amt">2 340 €</div></div>
+          <div class="fin-acc"><div><div class="fin-acc-name">Säästötili</div><div class="fin-acc-bank">S-Pankki</div></div><div class="fin-acc-amt">8 750 €</div></div>
+          <div class="fin-acc"><div><div class="fin-acc-name">Käyttötili</div><div class="fin-acc-bank">OP</div></div><div class="fin-acc-amt">1 205 €</div></div>
+          <div class="fin-acc"><div><div class="fin-acc-name">Käyttötili</div><div class="fin-acc-bank">Nordea</div></div><div class="fin-acc-amt">450 €</div></div>
+          <div class="fin-acc"><div><div class="fin-acc-name">Tili</div><div class="fin-acc-bank">BASE</div></div><div class="fin-acc-amt">320 €</div></div>
+          <div class="fin-acc" style="border-top:0.5px solid var(--color-border-tertiary);padding-top:7px;margin-top:3px"><div><div class="fin-acc-name">Osakesalkku</div><div class="fin-acc-bank">Nordnet</div></div><div style="text-align:right"><div class="fin-acc-amt">24 800 €</div><div style="font-size:10px" class="pos">+2,3% tänään</div></div></div>
+        </div>
+
+        <div class="fin-card" onclick="openPanel('maksuaikakortti')">
+          <div class="fin-sec">Maksuaikakortti <span class="tag">Mastercard</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+            <span style="font-size:10px;color:var(--color-text-secondary)">Kertymä tällä jaksolla</span>
+            <span style="font-size:15px;font-weight:500" class="neg">−736 €</span>
+          </div>
+          <div class="cycle-bar-outer"><div class="cycle-bar-inner" id="cycleBar"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--color-text-secondary)">
+            <span>1.3.</span><span id="cycleDays">4 pv jäljellä — erä 1.4.</span><span>31.3.</span>
+          </div>
+          <div style="margin-top:8px;font-size:10px;color:var(--color-text-secondary)">Päivittäinen vauhti: <span style="color:var(--color-text-primary);font-weight:500">30,7 €/pv</span> — budjetti 25 €/pv</div>
+        </div>
+      </div>
+
+      <div class="fin-card" onclick="openPanel('kuvaaja')">
+        <div class="fin-sec">Tulot ja menot — 6 kk</div>
+        <div style="position:relative;height:230px"><canvas id="menotChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="fin-bot">
+      <div class="fin-card" onclick="openPanel('kategoriat')">
+        <div class="fin-sec">Kulukategoriat — maaliskuu</div>
+        <div class="fin-cat-row"><div class="fin-cat-label"><span style="color:var(--color-text-primary)">Laskut ja maksut</span><span style="font-weight:500;color:var(--color-text-primary)">−420 €</span></div><div class="fin-bar-wrap"><div class="fin-bar" style="width:100%;background:#1D9E75"></div></div></div>
+        <div class="fin-cat-row"><div class="fin-cat-label"><span style="color:var(--color-text-primary)">Ruoka ja ravintolat</span><span style="font-weight:500;color:var(--color-text-primary)">−380 €</span></div><div class="fin-bar-wrap"><div class="fin-bar" style="width:90%;background:#1D9E75"></div></div></div>
+        <div class="fin-cat-row"><div class="fin-cat-label"><span style="color:var(--color-text-primary)">Liikenne ja auto</span><span style="font-weight:500;color:var(--color-text-primary)">−280 €</span></div><div class="fin-bar-wrap"><div class="fin-bar" style="width:67%;background:#5DCAA5"></div></div></div>
+        <div class="fin-cat-row"><div class="fin-cat-label"><span style="color:var(--color-text-primary)">Vapaa-aika</span><span style="font-weight:500;color:var(--color-text-primary)">−195 €</span></div><div class="fin-bar-wrap"><div class="fin-bar" style="width:46%;background:#5DCAA5"></div></div></div>
+        <div class="fin-cat-row"><div class="fin-cat-label"><span style="color:var(--color-text-primary)">Muut</span><span style="font-weight:500;color:var(--color-text-primary)">−567 €</span></div><div class="fin-bar-wrap"><div class="fin-bar" style="width:100%;background:#9FE1CB"></div></div></div>
+      </div>
+
+      <div class="fin-card" onclick="openPanel('lainat')">
+        <div class="fin-sec">Lainat</div>
+        <div class="fin-loan"><div class="fin-loan-title">Asuntolaina</div><div class="fin-loan-detail"><span>Jäljellä: 148 500 €</span><span>Lyhennys: 650 € + korko 200 €</span></div><div class="fin-prog-wrap"><div class="fin-prog" style="width:62%"></div></div><div style="font-size:10px;color:var(--color-text-secondary);margin-top:2px">62% maksettu</div></div>
+        <div class="fin-loan"><div class="fin-loan-title">Autolaina</div><div class="fin-loan-detail"><span>Jäljellä: 8 200 €</span><span>Lyhennys: 180 € + korko 40 €</span></div><div class="fin-prog-wrap"><div class="fin-prog" style="width:34%"></div></div><div style="font-size:10px;color:var(--color-text-secondary);margin-top:2px">34% maksettu</div></div>
+        <div style="margin-top:12px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--color-text-secondary)">Lainat yhteensä</span><span style="font-weight:500;color:var(--color-text-primary)">156 700 €</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--color-text-secondary)">Lyhennykset</span><span style="font-weight:500;color:var(--color-text-primary)">830 €/kk</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--color-text-secondary)">Korot</span><span style="font-weight:500" class="neg">240 €/kk</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="panel-title"><span id="panelTitle">Tarkemmat tiedot</span><button class="close-btn" onclick="closePanel()">✕</button></div>
+    <div id="panelContent"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const today = new Date();
+const daysInMarch = 31;
+const dayOfMonth = 27;
+const pct = Math.round(dayOfMonth / daysInMarch * 100);
+document.getElementById('cycleBar').style.width = pct + '%';
+
+let chartInst = null;
+const isDark = document.documentElement.classList.contains('dark') || window.matchMedia('(prefers-color-scheme:dark)').matches;
+const textCol = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.38)';
+const gridCol = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+
+function buildChart(canvasId) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  const tulot = [3100,2900,3800,3200,3200,3200];
+  const menot = [1680,2240,2890,1520,1705,1842];
+  const netto = tulot.map((t,i) => t - menot[i]);
+  chartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Loka','Marras','Joulu','Tammi','Helmi','Maalis'],
+      datasets: [
+        { label:'Tulot', data: tulot, backgroundColor:'#9FE1CB', borderRadius:3, borderSkipped:false },
+        { label:'Menot', data: menot, backgroundColor:'#F0997B', borderRadius:3, borderSkipped:false },
+        { label:'Netto', data: netto, type:'line', borderColor:'#1D9E75', backgroundColor:'transparent', pointBackgroundColor: netto.map(n => n>=0?'#1D9E75':'#D85A30'), pointRadius:4, tension:0.3 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ labels:{ font:{size:10}, color:textCol, boxWidth:10, padding:12 } },
+        tooltip:{ callbacks:{ label: c => c.dataset.label + ': ' + c.parsed.y.toLocaleString('fi-FI') + ' €' } }
+      },
+      scales: {
+        x:{ grid:{color:gridCol}, ticks:{color:textCol, font:{size:10}} },
+        y:{ grid:{color:gridCol}, ticks:{color:textCol, font:{size:10}, callback:v=>v.toLocaleString('fi-FI')+'€' } }
+      }
+    }
+  });
+}
+
+setTimeout(() => buildChart('menotChart'), 300);
+
+const panels = {
+  pankkitilit: { title:'Pankkitilit', html:`<div class="detail-row"><span>S-Pankki käyttötili</span><span>2 340 €</span></div><div class="detail-row"><span>S-Pankki säästötili</span><span>8 750 €</span></div><div class="detail-row"><span>OP käyttötili</span><span>1 205 €</span></div><div class="detail-row"><span>Nordea</span><span>450 €</span></div><div class="detail-row"><span>BASE</span><span>320 €</span></div><div class="detail-row" style="border-top:1px solid var(--color-border-secondary);margin-top:4px;padding-top:10px"><span>Yhteensä</span><span>13 065 €</span></div>` },
+  sijoitukset: { title:'Sijoitukset — Nordnet', html:`<div class="detail-row"><span>Salkun arvo</span><span>24 800 €</span></div><div class="detail-row"><span>Päivämuutos</span><span class="pos">+573 €</span></div><div class="detail-row"><span>Tämän vuoden tuotto</span><span class="pos">+1 240 €</span></div><div class="detail-row"><span>Sijoitettu yhteensä</span><span>18 500 €</span></div><div style="margin-top:14px;font-size:11px;color:var(--color-text-secondary)">Nordnet-integraatio vaatii manuaalisen CSV-tuonnin tai erillisen API-yhteyden.</div>` },
+  menot: { title:'Menot — maaliskuu', html:`<div class="detail-row"><span>Laskut ja maksut</span><span class="neg">−420 €</span></div><div class="detail-row"><span>Ruoka ja ravintolat</span><span class="neg">−380 €</span></div><div class="detail-row"><span>Liikenne ja auto</span><span class="neg">−280 €</span></div><div class="detail-row"><span>Vapaa-aika</span><span class="neg">−195 €</span></div><div class="detail-row"><span>Muut</span><span class="neg">−567 €</span></div><div class="detail-row" style="border-top:1px solid var(--color-border-secondary);margin-top:4px;padding-top:10px"><span>Yhteensä</span><span class="neg">−1 842 €</span></div><div class="detail-row"><span>Tulot</span><span class="pos">+3 200 €</span></div><div class="detail-row"><span>Netto</span><span class="pos">+1 358 €</span></div>` },
+  tulot: { title:'Tulot — maaliskuu', html:`<div class="detail-row"><span>Palkka</span><span class="pos">+3 200 €</span></div><div class="detail-row"><span>Edellinen kuukausi</span><span class="pos">+3 200 €</span></div><div class="detail-row"><span>Keskiarvo 6 kk</span><span class="pos">+3 233 €</span></div>` },
+  tilit: { title:'Kaikki tilit', html:`<div class="detail-row"><span>S-Pankki käyttötili</span><span>2 340 €</span></div><div class="detail-row"><span>S-Pankki säästötili</span><span>8 750 €</span></div><div class="detail-row"><span>OP</span><span>1 205 €</span></div><div class="detail-row"><span>Nordea</span><span>450 €</span></div><div class="detail-row"><span>BASE</span><span>320 €</span></div><div class="detail-row"><span>Nordnet (salkku)</span><span>24 800 €</span></div><div class="detail-row" style="border-top:1px solid var(--color-border-secondary);margin-top:4px;padding-top:10px"><span>Varat yhteensä</span><span>37 865 €</span></div><div class="detail-row"><span>Lainat</span><span class="neg">−156 700 €</span></div><div class="detail-row"><span>Nettovarat</span><span class="neg">−118 835 €</span></div>` },
+  maksuaikakortti: { title:'Maksuaikakortti — Mastercard', html:`<div class="detail-row"><span>Jakso</span><span>1.3.–31.3.2026</span></div><div class="detail-row"><span>Kertymä nyt</span><span class="neg">−736 €</span></div><div class="detail-row"><span>Päiviä jäljellä</span><span>4</span></div><div class="detail-row"><span>Päivittäinen vauhti</span><span class="neg">30,7 €/pv</span></div><div class="detail-row"><span>Budjetti/pv</span><span>25,00 €/pv</span></div><div class="detail-row"><span>Ennuste jakson lopussa</span><span class="neg">~859 €</span></div><div class="detail-row"><span>Maksetaan</span><span>1.4.2026</span></div><div style="margin-top:14px;padding:10px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:11px;color:var(--color-text-secondary)">Olet 5,7 €/pv yli budjetin. Jakson loppuun mennessä ylitys on arviolta noin 123 €.</div>` },
+  kuvaaja: { title:'Tulot ja menot — 6 kk', html:`<div style="height:220px;margin-bottom:12px"><canvas id="panelChart"></canvas></div><div class="detail-row"><span>Paras kuukausi</span><span class="pos">Lokakuu +1 420 €</span></div><div class="detail-row"><span>Heikoin kuukausi</span><span class="neg">Joulukuu −910 €</span></div><div class="detail-row"><span>Keskimääräinen netto</span><span class="pos">+563 €/kk</span></div>` },
+  kategoriat: { title:'Kulukategoriat — maaliskuu', html:`<div class="detail-row"><span>Laskut ja maksut</span><span class="neg">−420 €</span></div><div class="detail-row"><span>Ruoka ja ravintolat</span><span class="neg">−380 €</span></div><div class="detail-row"><span>Liikenne ja auto</span><span class="neg">−280 €</span></div><div class="detail-row"><span>Vapaa-aika</span><span class="neg">−195 €</span></div><div class="detail-row"><span>Muut</span><span class="neg">−567 €</span></div><div style="margin-top:14px;font-size:11px;color:var(--color-text-secondary)">Kategoriointi: säännöt (avainsanat) + manuaalinen tarkistus. Kategorisoinnin voi avata erikseen.</div>` },
+  lainat: { title:'Lainat', html:`<div class="detail-row"><span>Asuntolaina — lyhennys</span><span>650 €/kk</span></div><div class="detail-row"><span>Asuntolaina — korko</span><span class="neg">200 €/kk</span></div><div class="detail-row"><span>Asuntolaina — jäljellä</span><span>148 500 €</span></div><div class="detail-row" style="margin-top:8px"><span>Autolaina — lyhennys</span><span>180 €/kk</span></div><div class="detail-row"><span>Autolaina — korko</span><span class="neg">40 €/kk</span></div><div class="detail-row"><span>Autolaina — jäljellä</span><span>8 200 €</span></div><div class="detail-row" style="border-top:1px solid var(--color-border-secondary);margin-top:4px;padding-top:10px"><span>Lyhennykset yht.</span><span>830 €/kk</span></div><div class="detail-row"><span>Korot yht.</span><span class="neg">240 €/kk</span></div>` }
+};
+
+let activePanel = null;
+function openPanel(key) {
+  const p = panels[key];
+  if (!p) return;
+  document.getElementById('panelTitle').textContent = p.title;
+  document.getElementById('panelContent').innerHTML = p.html;
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('main').classList.add('shifted');
+  document.querySelectorAll('.fin-metric, .fin-card').forEach(el => el.classList.remove('active'));
+  if (activePanel === key) { closePanel(); return; }
+  activePanel = key;
+  if (key === 'kuvaaja') { setTimeout(() => buildChart('panelChart'), 50); }
+}
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('main').classList.remove('shifted');
+  activePanel = null;
+}
+</script>
