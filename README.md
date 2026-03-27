@@ -61,12 +61,16 @@ Integroinnit ovat omia moduulejaan jotka toteuttavat yhteisen `DataSourceIntegra
 
 ```python
 class DataSourceIntegration(Protocol):
-    def get_config_schema(self) -> dict: ...       # lomakekenttien määritys
-    def list_credentials(self) -> list[dict]: ...  # tallennettavien tunnistetietojen kuvaukset
-    async def test_connection(self) -> bool: ...   # "Testaa yhteys" -nappi
-    async def fetch_accounts(self) -> list: ...    # tilit Saldon formaatissa
+    def get_config_schema(self) -> dict: ...           # lomakekenttien määritys
+    def list_credentials(self) -> list[dict]: ...      # tallennettavien tunnistetietojen kuvaukset
+    def get_alert_schedule(self) -> list[dict]: ...    # millä aikataululla check_alerts() ajetaan
+    async def check_alerts(self) -> list[Alert]: ...   # palauttaa avoinna olevat hälytykset
+    async def test_connection(self) -> bool: ...       # "Testaa yhteys" -nappi
+    async def fetch_accounts(self) -> list: ...        # tilit Saldon formaatissa
     async def fetch_transactions(self, account_id, since) -> list: ...
 ```
+
+`get_alert_schedule()` palauttaa listan tarkistusaikatauluja (esim. `[{"interval_hours": 24}]`). Saldo rekisteröi nämä scheduleriin yhteystä alustettaessa — scheduler itse ei tiedä mitä tarkistaa, se vain kutsuu `check_alerts()` sovituin väliajoin. `Alert`-rakenne sisältää otsikon, kuvauksen, vakavuustason ja mahdollisen toimintakehotteen.
 
 `list_credentials()` palauttaa listan sanakirjoja muodossa `{"nimi": ..., "tarkoitus": ..., "sijainti": ..., "arvo": ...}`. Backend käy läpi kaikki aktiiviset tietolähteet ja aggregoi vastaukset yhdelle päätepisteelle. Arvot puretaan salauksesta vasta käyttäjän eksplisiittisellä pyynnöllä.
 
@@ -79,6 +83,47 @@ Jokainen integraatio (`gocardless.py`, `nordnet_csv.py`, `manual.py`) toteuttaa 
 4. Onnistumisen jälkeen käyttäjä vahvistaa — tunnistetiedot tallennetaan salattuina tietokantaan
 
 Uuden integraation lisääminen = yksi uusi tiedosto `integrations/`-kansioon + yksi rivi rekisteriin.
+
+---
+
+## Hälytykset ja ilmoitukset
+
+Integrointimoduulit voivat lähettää Saldon käyttöliittymään tärkeitä ilmoituksia ilman, että Saldo-ydin tietää mitään niiden sisällöstä. Vastuu vuokra-aikojen seurannasta, OAuth-vanhenemisista ja muista integraatiokohtaisista tiloista on aina integraatiomoduulilla itsellään.
+
+### Vastuunjako
+
+| Osapuoli | Vastuu |
+| --- | --- |
+| **Integraatiomoduuli** | Tietää oman vuokra-aikansa, valtuutuksensa tilan ja missä tilanteessa käyttäjän toimenpiteet ovat tarpeen |
+| **Integraatiomoduuli** | Määrittelee kuinka usein `check_alerts()` kutsutaan (`get_alert_schedule()`) |
+| **Integraatiomoduuli** | Palauttaa `Alert`-objektilistan kun tarkistus ajetaan |
+| **Scheduler** | Kutsuu `check_alerts()` integraation määrittämällä aikataululla — ei tiedä mikä tarkistus on |
+| **Saldo-ydin** | Tallentaa hälytykset tietokantaan ja toimittaa ne käyttöliittymälle |
+| **Frontend** | Näyttää hälytykset (ilmoitusalue, piste kuvakkeessa tms.) — toteutustapa auki |
+
+### `Alert`-rakenne
+
+```python
+@dataclass
+class Alert:
+    integration_type: str   # "gocardless"
+    account_id: int | None  # liittyykö tiettyyn tiliin vai koko integraatioon
+    severity: str           # "info" | "warning" | "error"
+    title: str              # "GoCardless-valtuutus vanhenee pian"
+    body: str               # "Yhteys S-Pankkiin vanhenee 5 päivän kuluttua. Uusi valtuutus tarvitaan."
+    action_url: str | None  # linkki toimenpideohjeeseen tai re-auth-virtaukseen
+    expires_at: datetime | None  # milloin hälytys ei enää ole ajankohtainen
+```
+
+### Esimerkki: GoCardless OAuth-vanheneminen
+
+`gocardless.py` tallentaa yhteyden luomisajan ja tietokannasta luettavan vanhenemisajan. `get_alert_schedule()` palauttaa `[{"interval_hours": 24}]`. Kun scheduler kutsuu `check_alerts()`, moduuli laskee jäljellä olevan ajan:
+- > 14 pv: ei hälytystä
+- 7–14 pv: `severity: "warning"` — ilmoitus näkyviin
+- < 7 pv: `severity: "error"` — korostettu ilmoitus
+- Vanhentunut: `severity: "error"` — datasource merkitty epäkurantiksi
+
+Yhteys uusitaan käyttäjän toimesta ilmoituksen kautta — ei automaattisesti.
 
 ---
 
@@ -104,14 +149,11 @@ FastAPI valittu seuraavilla perusteilla:
 
 Integrointiarkkitehtuurin ansiosta PayPal-integraatio on helppo lisätä myöhemmin omana moduulinaan ilman muutoksia ytimeen. Ei estä muuta kehitystä.
 
-### GoCardless OAuth:n uusiminen käytännössä
+### ~~GoCardless OAuth:n uusiminen käytännössä~~ ✅ Päätetty: integraatiomoduuli omistaa hälytyslogiikan
 
-**Tila:** Avoin — rakenne päätettävä Vaiheen 3 yhteydessä.
+**Tila:** Päätetty.
 
-GoCardless-yhteys vanhenee 90 päivän välein. Kotihostin ei välttämättä ole aktiivinen juuri oikeaan aikaan. Vaihtoehtoja:
-- Dashboard-banneri tai muu ilmoitus, kun vanheneminen lähestyy
-- Käyttäjä uusii yhteyden selainpohjaisesti kirjautuessaan sisään
-- Scheduler tarkistaa voimassaolon ja varoittaa ajoissa
+Vuokra-aikojen seuranta ja vanhenemisilmoitukset ovat integraatiomoduulin vastuulla, eivät schedulerin. Scheduler on sokea suorittaja — se kutsuu `check_alerts()` integraation itsensä määrittämällä aikataululla. Katso [Hälytykset ja ilmoitukset](#h%C3%A4lytykset-ja-ilmoitukset) -luku.
 
 ### Maksuaikakortin budjetti-granulaarisuus
 
@@ -264,7 +306,10 @@ Säännöt tallennetaan JSON-rakenteena tietokantaan, helposti laajennettavissa.
 - [ ] GoCardless developer-tili ja API-avaimet
 - [ ] OAuth-flow pankin yhdistämiseen (S-Pankki, OP, Nordea, BASE)
 - [ ] Tapahtumien haku ja tallennus SQLiteen
-- [ ] Scheduler (cron) päivittäistä hakua varten
+- [ ] Scheduler: rekisteröi `get_alert_schedule()` kaikkien aktiivisten integraatioiden osalta
+- [ ] Hälytysten tallennus tietokantaan ja toimitus frontendille
+- [ ] `gocardless.py`: `check_alerts()` toteuttaa vanhenemislogiikan (14/7 pv -kynnykset)
+- [ ] Re-auth-virtaus ilmoituksesta käsin
 
 ### Vaihe 4 — Autentikointi ja hallinta
 - [ ] Käyttäjätilit ja kirjautuminen
