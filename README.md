@@ -31,7 +31,7 @@ Tämä on henkilökohtainen projekti. Se ei pyri olemaan yleiskäyttöinen — s
 | --- | --- |--- |
 | Frontend | HTML + CSS + JS (vanilla) | Ei build-tooleja, suoraan selaimessa, helppo ylläpitää |
 | Kuvaajat | Chart.js | Kevyt, selainpohjainen, ei riippuvuuksia |
-| Backend | Python (Flask tai FastAPI) ¹ | Kevyt, tuttu, hyvät kirjastot — valinta auki, katso Avoimet kysymykset |
+| Backend | Python + FastAPI | Async-natiivi, Pydantic-validointi, automaattiset API-dokumentit — sopii GoCardless-scheduleriin |
 | Tietokanta | SQLite | Ei erillistä palvelinta, riittää kotikäyttöön |
 | Pankki-integraatio | GoCardless Bank Account Data API | Ainoa realistinen vaihtoehto yksityishenkilölle PSD2-ympäristössä; tukee OP:ta, S-Pankkia, Nordeaa ym. |
 | Hosting | Paikallinen (localhost tai kotiverkko) | Ei pilvipalvelua, data pysyy omassa hallinnassa |
@@ -44,14 +44,41 @@ Tämä on henkilökohtainen projekti. Se ei pyri olemaan yleiskäyttöinen — s
 
 ### Integraatiot ja tietolähteet
 
-| Lähde | Metodi | Automaatio |
+| Lähde | Integraatiomoduuli | Automaatio |
 | --- | --- | --- |
-| S-Pankki, OP, Nordea | GoCardless API | Automaattinen, OAuth uusittava 90 pv välein |
-| BASE | GoCardless API | Automaattinen |
-| Nordnet | CSV-export | Manuaalinen tai puoliautomaattinen |
-| PayPal | PayPal REST API tai CSV ² | TBD — katso Avoimet kysymykset |
-| Mastercard (maksuaikakortti) | GoCardless API | Automaattinen |
-| Lainat | Manuaalinen syöttö | Manuaalinen (saldo + korko + lyhennys) |
+| S-Pankki, OP, Nordea | `gocardless` | Automaattinen, OAuth uusittava 90 pv välein |
+| BASE | `gocardless` | Automaattinen |
+| Nordnet | `nordnet_csv` | Manuaalinen tai puoliautomaattinen |
+| Mastercard (maksuaikakortti) | `gocardless` | Automaattinen |
+| Lainat | `manual` | Manuaalinen syöttö (saldo + korko + lyhennys) |
+| PayPal | — | Ei toteuteta toistaiseksi — katso Avoimet kysymykset |
+
+### Integrointiarkkitehtuuri
+
+Integroinnit ovat omia moduulejaan jotka toteuttavat yhteisen `DataSourceIntegration`-protokollan. Saldo-ydin ei tiedä mitään yksittäisten integraatioiden toteutuksesta — se kutsuu vain sovittua rajapintaa.
+
+**Protokolla** (`backend/integrations/base.py`):
+
+```python
+class DataSourceIntegration(Protocol):
+    def get_config_schema(self) -> dict: ...       # lomakekenttien määritys
+    def list_credentials(self) -> list[dict]: ...  # tallennettavien tunnistetietojen kuvaukset
+    async def test_connection(self) -> bool: ...   # "Testaa yhteys" -nappi
+    async def fetch_accounts(self) -> list: ...    # tilit Saldon formaatissa
+    async def fetch_transactions(self, account_id, since) -> list: ...
+```
+
+`list_credentials()` palauttaa listan sanakirjoja muodossa `{"nimi": ..., "tarkoitus": ..., "sijainti": ..., "arvo": ...}`. Backend käy läpi kaikki aktiiviset tietolähteet ja aggregoi vastaukset yhdelle päätepisteelle. Arvot puretaan salauksesta vasta käyttäjän eksplisiittisellä pyynnöllä.
+
+Jokainen integraatio (`gocardless.py`, `nordnet_csv.py`, `manual.py`) toteuttaa protokollan omalla tavallaan. Rekisteri (`backend/integrations/registry.py`) yhdistää tunnisteen (`"gocardless"`) toteutusluokkaan.
+
+**Tietolähteen lisäystyönkulku:**
+1. Käyttäjä avaa "Lisää tietolähde" — näkee listan rekisteröidyistä integraatioista
+2. Valitsee integraation — backend palauttaa sen `config_schema` — frontend renderöi lomakkeen
+3. Käyttäjä täyttää kentät, painaa "Testaa yhteys" — backend kutsuu `test_connection()`
+4. Onnistumisen jälkeen käyttäjä vahvistaa — tunnistetiedot tallennetaan salattuina tietokantaan
+
+Uuden integraation lisääminen = yksi uusi tiedosto `integrations/`-kansioon + yksi rivi rekisteriin.
 
 ---
 
@@ -59,17 +86,23 @@ Tämä on henkilökohtainen projekti. Se ei pyri olemaan yleiskäyttöinen — s
 
 Seuraavat asiat on tunnistettu mutta ei vielä päätetty — tai niihin on tehty alustava päätös, joka saattaa muuttua arkkitehtuurin tarkentuessa. Nämä kannattaa ratkaista ennen kyseistä vaihetta.
 
-### ¹ Flask vai FastAPI
+### ~~¹ Flask vai FastAPI~~ ✅ Päätetty: FastAPI
 
-**Tila:** Avoin — päätös ennen Vaiheen 2 aloitusta.
+**Tila:** Päätetty.
 
-Flask on yksinkertaisempi ja riittää synkroniseen käyttöön. FastAPI sopii paremmin asynkronisiin operaatioihin, joita GoCardless-haut voivat vaatia. Valinta vaikuttaa middleware-rakenteeseen, autentikointiin ja schedulerin toteutukseen.
+FastAPI valittu seuraavilla perusteilla:
+- Async-natiivi — GoCardless-scheduler ja ulkoiset API-kutsut toimivat luontevasti
+- Pydantic-skeemat toimivat samalla tietokontrakteina frontendin ja backendin välillä
+- Automaattinen Swagger-dokumentaatio (`/docs`) helpottaa kehitystä
+- Dependency injection tekee autentikoinnista siistimpää kuin Flaskissa
+
+**Huomio SQLite:stä:** Standardikirjaston `sqlite3` on synkroninen. FastAPI-async-reitittimissä DB-kutsut ajetaan joko `aiosqlite`-kirjastolla tai `asyncio.to_thread()`:llä. Tämä päätös tehdään Vaiheen 2 yhteydessä.
 
 ### ² PayPal-integraatio
 
-**Tila:** Avoin — REST API vai CSV-tuonti.
+**Tila:** Lykätty — ei toteuteta toistaiseksi.
 
-REST API on automaattisempi mutta vaatii PayPal-sovelluksen rekisteröinnin. CSV on yksinkertaisempi mutta manuaalinen. Integraation prioriteetti muihin lähteisiin nähden on myös auki.
+Integrointiarkkitehtuurin ansiosta PayPal-integraatio on helppo lisätä myöhemmin omana moduulinaan ilman muutoksia ytimeen. Ei estä muuta kehitystä.
 
 ### GoCardless OAuth:n uusiminen käytännössä
 
@@ -103,35 +136,74 @@ Vaiheet 7+ (lokalisaatio, mobiili, dokumentaatio) ovat vielä nimeämättä. Kan
 
 ---
 
+## Tunnistetietojen hallintanäkymä
+
+Kaikki sovelluksen tallentamat arkaluontoiset tiedot ovat nähtävillä yhdessä paikassa. Tarkoitus on antaa käyttäjälle täysi läpinäkyvyys siitä, mitä järjestelmä tietää ja mihin se on tallennettu.
+
+### Mitä näkymä näyttää
+
+Jokaisesta tallennetusta tunnistetiedosta esitetään:
+
+| Kenttä | Kuvaus |
+|---|---|
+| **Nimi** | Tunnisteen nimi (esim. "GoCardless access token") |
+| **Tarkoitus** | Mitä varten tietoa käytetään (esim. "Pankkiyhteyden OAuth-valtuutus, S-Pankki") |
+| **Sijainti** | Missä tieto säilytetään (esim. `accounts.config_json`, `.env`) |
+| **Arvo** | Salattu oletuksena — käyttäjä paljastaa yksitellen klikkaamalla |
+
+Jokainen integraatiomoduuli toteuttaa `list_credentials()` joka palauttaa tämän rakenteen. Backend aggregoi kaikkien aktiivisten tietolähteiden tiedot yhdelle endpointille.
+
+### Suojaukset
+
+- Näkymä vaatii **uudelleentodentamisen** (salasana syötetään uudelleen) vaikka sessio olisi aktiivinen
+- Arvot näytetään **piilotettuna** oletuksena, paljastetaan yksitellen eksplisiittisellä klikkauksella
+- Näkymä on saatavilla **vain adminille**
+
+### Pyyhi kaikki -toiminto
+
+"Pyyhi kaikki tunnistetiedot" -nappi:
+1. Pyytää erillisen vahvistuksen (ei pelkkä "Oletko varma?" — vaatii esim. salasanan tai tekstin kirjoittamisen)
+2. Poistaa kaikkien tilien `config_json`-arvojen sisällön
+3. Peruuttaa voimassa olevat OAuth-istunnot ulkoisiin palveluihin (integraatiokohtainen `revoke()`-metodi, jos saatavilla)
+4. Tyühjää käyttäjän sessiotunnukset
+5. Kirjaa toimenpiteen lokiin
+
+Tämä on sovelluksen "tehdasnollaus" tunnistetietojen osalta. Tallennettu finanssidata (tapahtumat, saldot) *ei* poistu — sen poistaminen on erillinen toimi.
+
+---
+
 ## Arkkitehtuuri
 
 ```
 ┌─────────────────────────────────────────────┐
 │              Selain (Frontend)               │
 │   dashboard.html + chart.js + panel UI      │
+│   + tietolähteen lisäysvelho                │
 └────────────────────┬────────────────────────┘
                      │ REST API
 ┌────────────────────▼────────────────────────┐
-│             Python Backend                   │
-│   Flask/FastAPI · Auth · Scheduler          │
+│             Python + FastAPI                 │
+│   Auth · Scheduler · Integration Registry   │
 └──────┬───────────────────────┬──────────────┘
        │                       │
-┌──────▼──────┐        ┌───────▼──────────────┐
-│   SQLite    │        │  GoCardless API       │
-│  (data.db)  │        │  + Nordnet CSV        │
-└─────────────┘        └──────────────────────┘
+┌──────▼──────┐        ┌───────▼──────────────────────────┐
+│   SQLite    │        │  Integration Registry             │
+│  (data.db)  │        │  gocardless · nordnet_csv · ...  │
+└─────────────┘        └──────────────────────────────────┘
 ```
 
 ### Tietokantarakenne (alustava)
 
 ```
 users           — käyttäjät (id, nimi, salasana_hash, rooli)
-accounts        — tilit (id, user_id, pankki, nimi, tyyppi, gocard_id)
+accounts        — tilit (id, user_id, nimi, tyyppi, integration_type, config_json)
 transactions    — tapahtumat (id, account_id, pvm, summa, kuvaus, kategoria_id)
 categories      — kategoriat (id, nimi, väri, säännöt_json)
 loans           — lainat (id, user_id, nimi, jäljellä, lyhennys, korko, eräpäivä)
 card_cycles     — maksuaikakorttijaksot (id, account_id, alku, loppu, maksupäivä, budjetti_pv)
 ```
+
+`integration_type` on rekisteriavain (esim. `"gocardless"`). `config_json` on salattu JSON-blob joka sisältää integraatiokohtaiset tunnistetiedot — ei GoCardless-spesifisiä sarakkeita ytimessä.
 
 ---
 
@@ -180,9 +252,12 @@ Säännöt tallennetaan JSON-rakenteena tietokantaan, helposti laajennettavissa.
 - Maksuaikakortti-widget
 
 ### Vaihe 2 — Backend ja tietokanta
-- [ ] Python-projektirakenne, Flask/FastAPI
-- [ ] SQLite-skeema ja migraatiot
+- [ ] Python-projektirakenne, FastAPI
+- [ ] `DataSourceIntegration`-protokollan määrittely ja `gocardless`-moduulin runko
+- [ ] Integration Registry
+- [ ] SQLite-skeema ja migraatiot (`aiosqlite` vs `asyncio.to_thread()` päätetään tässä)
 - [ ] REST API datalle (tilit, tapahtumat, saldot)
+- [ ] Tietolähteen lisäysvelho: lomake, "Testaa yhteys", tallennus
 - [ ] Dashboard hakee datan API:sta JSONin kautta
 
 ### Vaihe 3 — GoCardless-integraatio
@@ -191,9 +266,11 @@ Säännöt tallennetaan JSON-rakenteena tietokantaan, helposti laajennettavissa.
 - [ ] Tapahtumien haku ja tallennus SQLiteen
 - [ ] Scheduler (cron) päivittäistä hakua varten
 
-### Vaihe 4 — Autentikointi
+### Vaihe 4 — Autentikointi ja hallinta
 - [ ] Käyttäjätilit ja kirjautuminen
 - [ ] Session-hallinta
+- [ ] Uudelleentodentamisvirtaus (tunnistetietojen suojaus)
+- [ ] Tunnistetietojen hallintanäkymä: listaus, peitto/paljastus, pyyhi kaikki
 - [ ] Perhenäkymä
 
 ### Vaihe 5 — Kategorisointi
@@ -237,26 +314,30 @@ Patch-versiot (`0.1.1` jne.) bugifixeille ja pienille korjauksille. Muutokset ki
 ```
 saldo/
 ├── frontend/
-│   ├── index.html          ← dashboard (tästä aloitettu)
+│   ├── index.html              ← dashboard (tästä aloitettu)
+│   ├── credentials.html        ← tunnistetietojen hallintanäkymä
 │   ├── static/
 │   │   ├── style.css
 │   │   └── app.js
 │   └── components/
 │       └── panel.js
 ├── backend/
-│   ├── app.py              ← Flask/FastAPI entry point ¹
-│   ├── models.py           ← tietokantamallit
+│   ├── app.py                  ← FastAPI entry point
+│   ├── models.py               ← tietokantamallit
 │   ├── routes/
 │   │   ├── accounts.py
 │   │   ├── transactions.py
-│   │   └── auth.py
+│   │   ├── auth.py
+│   │   └── credentials.py          ← tunnistetietojen aggregointi ja pyyhintä
 │   └── integrations/
+│       ├── base.py                 ← DataSourceIntegration Protocol
+│       ├── registry.py             ← integraatiorekisteri
 │       ├── gocardless.py
-│       ├── nordnet.py
-│       └── paypal.py
+│       ├── nordnet_csv.py
+│       └── manual.py
 ├── data/
-│   └── rahatilanne.db      ← SQLite (gitignoressa)
-├── config.example.yaml     ← konfiguraatiopohja
+│   └── saldo.db                ← SQLite (gitignoressa)
+├── config.example.yaml
 ├── requirements.txt
 └── README.md
 ```
@@ -267,8 +348,10 @@ saldo/
 
 - Sovellus on tarkoitettu **paikalliseen käyttöön** (localhost tai kotiverkko)
 - Pankkidata tallennetaan ainoastaan omalle koneelle
+- Integraatiokohtaiset tunnistetiedot tallennetaan **salattuina** `config_json`-kenttään, ei selkokielisesti
 - GoCardless-API-avaimet tallennetaan ympäristömuuttujiin, ei koodiin
 - Julkinen GitHub-repository ei sisällä henkilökohtaista dataa (`.gitignore`)
+- **Tunnistetietojen hallintanäkymä** antaa käyttäjälle täyden läpinäkyvyyden kaikesta tallennetusta arkaluonteisesta tiedosta
 - Tuotantokäyttöön kotiverkossa: HTTPS + vahva salasana suositeltava
 
 ---
